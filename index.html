@@ -138,7 +138,7 @@
     <!-- MODAL ALIADO -->
     <div id="modal-aliado" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
         <div class="bg-cardbg border border-slate-800 rounded-3xl w-full max-w-md p-6 shadow-2xl">
-            <h3 id="modal-aliado-titulo" class="text-lg font-black text-white mb-4 uppercase">NUEVO ALIADO</h3>
+            <h3 class="text-lg font-black text-white mb-4 uppercase">NUEVO ALIADO</h3>
             <form id="form-aliado" onsubmit="guardarAliado(event)">
                 <div class="mb-4">
                     <label class="block text-xs font-bold text-slate-400 mb-1 uppercase">NOMBRE DEL ALIADO</label>
@@ -152,12 +152,13 @@
         </div>
     </div>
 
-    <!-- MODAL SERVICIO -->
+    <!-- MODAL SERVICIO (CREAR / EDITAR) -->
     <div id="modal-servicio" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
         <div class="bg-cardbg border border-slate-800 rounded-3xl w-full max-w-md p-6 shadow-2xl">
             <h3 id="modal-servicio-titulo" class="text-lg font-black text-white mb-4 uppercase">AGREGAR SERVICIO</h3>
             <form id="form-servicio" onsubmit="guardarServicio(event)">
                 <input type="hidden" id="serv-aliado-index">
+                <input type="hidden" id="serv-edit-index">
                 
                 <div class="mb-4">
                     <label class="block text-xs font-bold text-slate-400 mb-1 uppercase">FECHA</label>
@@ -176,7 +177,7 @@
 
                 <div class="flex justify-end gap-3 mt-6">
                     <button type="button" onclick="cerrarModalServicio()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold px-4 py-2 rounded-xl text-xs uppercase transition-all">CANCELAR</button>
-                    <button type="submit" class="bg-neongreen hover:bg-emerald-400 text-darkbg font-bold px-5 py-2 rounded-xl text-xs uppercase transition-all">GUARDAR SERVICIO</button>
+                    <button type="submit" class="bg-neongreen hover:bg-emerald-400 text-darkbg font-bold px-5 py-2 rounded-xl text-xs uppercase transition-all">GUARDAR</button>
                 </div>
             </form>
         </div>
@@ -232,11 +233,14 @@
                                 aliados.push(aliadoObj);
                             }
                             
-                            // COPIA EXACTA: Toma tal cual el texto de la fecha que viene de la Sheet (ej: "2026-11-10")
+                            // LECTURA DIRECTA Y SEGURA DE LA FECHA DE LA SHEET
                             let fechaCruda = String(serv.fecha || "").trim();
-                            // Si por alguna razón trae hora larga, extrae solo la parte de la fecha YYYY-MM-DD
                             if (fechaCruda.includes('T')) {
                                 fechaCruda = fechaCruda.split('T')[0];
+                            }
+                            // Si por alguna razón viene vacía, ponemos una por defecto
+                            if (!fechaCruda || fechaCruda === "undefined" || fechaCruda === "null") {
+                                fechaCruda = obtenerFechaLocal();
                             }
 
                             aliadoObj.servicios.push({
@@ -300,6 +304,7 @@
                                     <p class="text-xs font-black text-emerald-400 mt-0.5">${formatearMoneda(serv.valor)}</p>
                                 </div>
                                 <div class="flex items-center gap-1 self-end sm:self-center">
+                                    <button onclick="abrirModalEditarServicio(${originalIndex}, ${sIndex})" class="p-1.5 bg-blue-950/40 hover:bg-blue-900/60 text-blue-400 rounded-lg text-xs border border-blue-900/30" title="EDITAR">✏️</button>
                                     <button onclick="eliminarServicio(${originalIndex}, ${sIndex})" class="p-1.5 bg-rose-950/40 hover:bg-rose-900/60 text-rose-400 rounded-lg text-xs border border-rose-900/30" title="ELIMINAR">🗑️</button>
                                 </div>
                             </div>
@@ -389,10 +394,24 @@
         }
 
         function abrirModalServicio(aliadoIndex) {
+            document.getElementById('modal-servicio-titulo').innerText = "AGREGAR SERVICIO";
             document.getElementById('serv-aliado-index').value = aliadoIndex;
+            document.getElementById('serv-edit-index').value = "";
             document.getElementById('serv-fecha').value = obtenerFechaLocal();
             document.getElementById('serv-desc').value = '';
             document.getElementById('serv-valor').value = '';
+            document.getElementById('modal-servicio').classList.remove('hidden');
+            document.getElementById('modal-servicio').classList.add('flex');
+        }
+
+        function abrirModalEditarServicio(aliadoIndex, servicioIndex) {
+            const servicio = aliados[aliadoIndex].servicios[servicioIndex];
+            document.getElementById('modal-servicio-titulo').innerText = "EDITAR SERVICIO";
+            document.getElementById('serv-aliado-index').value = aliadoIndex;
+            document.getElementById('serv-edit-index').value = servicioIndex;
+            document.getElementById('serv-fecha').value = servicio.fecha;
+            document.getElementById('serv-desc').value = servicio.descripcion;
+            document.getElementById('serv-valor').value = servicio.valor;
             document.getElementById('modal-servicio').classList.remove('hidden');
             document.getElementById('modal-servicio').classList.add('flex');
         }
@@ -405,25 +424,49 @@
         function guardarServicio(event) {
             event.preventDefault();
             const aIndex = document.getElementById('serv-aliado-index').value;
+            const editIndex = document.getElementById('serv-edit-index').value;
             const fecha = document.getElementById('serv-fecha').value;
             const descripcion = document.getElementById('serv-desc').value.toUpperCase();
             const valor = document.getElementById('serv-valor').value;
             const aliadoNombre = aliados[aIndex].nombre;
 
-            aliados[aIndex].servicios.push({ fecha, descripcion, valor });
-            
-            enviarASheet({
-                ACCION: 'CREAR_SERVICIO',
-                FECHA: fecha,
-                ALIADO: aliadoNombre,
-                DESCRIPCION: descripcion,
-                VALOR: valor,
-                ESTADO: 'PENDIENTE'
-            });
+            if (editIndex === "") {
+                // NUEVO SERVICIO
+                aliados[aIndex].servicios.push({ fecha, descripcion, valor });
+                enviarASheet({
+                    ACCION: 'CREAR_SERVICIO',
+                    FECHA: fecha,
+                    ALIADO: aliadoNombre,
+                    DESCRIPCION: descripcion,
+                    VALOR: valor,
+                    ESTADO: 'PENDIENTE'
+                });
+                mostrarEstado('✅ SERVICIO CREADO');
+            } else {
+                // EDITAR SERVICIO (Elimina el viejo en Sheet y crea el actualizado)
+                const servicioViejo = aliados[aIndex].servicios[editIndex];
+                enviarASheet({
+                    ACCION: 'ELIMINAR_SERVICIO',
+                    ALIADO: aliadoNombre,
+                    DESCRIPCION: servicioViejo.descripcion,
+                    VALOR: servicioViejo.valor
+                });
+
+                aliados[aIndex].servicios[editIndex] = { fecha, descripcion, valor };
+
+                enviarASheet({
+                    ACCION: 'CREAR_SERVICIO',
+                    FECHA: fecha,
+                    ALIADO: aliadoNombre,
+                    DESCRIPCION: descripcion,
+                    VALOR: valor,
+                    ESTADO: 'PENDIENTE'
+                });
+                mostrarEstado('✏️ SERVICIO ACTUALIZADO');
+            }
 
             cerrarModalServicio();
             renderizarAliados();
-            mostrarEstado('✅ SERVICIO ENVIADO A SHEET');
         }
 
         function eliminarServicio(aliadoIndex, servicioIndex) {
