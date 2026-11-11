@@ -231,21 +231,16 @@
                                 aliadoObj = { nombre: serv.aliado, servicios: [] };
                                 aliados.push(aliadoObj);
                             }
-                            // Aseguramos que la fecha se extraiga como texto plano limpio (ej: "2026-11-10")
-                            let fechaLimpia = String(serv.fecha).split('T')[0];
-                            if (fechaLimpia.includes('GMT')) {
-                                // Si por alguna razón viene un string de fecha larga antiguo, lo parseamos seguro
-                                let d = new Date(serv.fecha);
-                                if (!isNaN(d)) {
-                                    let yr = d.getFullYear();
-                                    let mo = String(d.getMonth() + 1).padStart(2, '0');
-                                    let dy = String(d.getDate()).padStart(2, '0');
-                                    fechaLimpia = `${yr}-${mo}-${dy}`;
-                                }
+                            
+                            // COPIA EXACTA: Toma tal cual el texto de la fecha que viene de la Sheet (ej: "2026-11-10")
+                            let fechaCruda = String(serv.fecha || "").trim();
+                            // Si por alguna razón trae hora larga, extrae solo la parte de la fecha YYYY-MM-DD
+                            if (fechaCruda.includes('T')) {
+                                fechaCruda = fechaCruda.split('T')[0];
                             }
 
                             aliadoObj.servicios.push({
-                                fecha: fechaLimpia,
+                                fecha: fechaCruda,
                                 descripcion: serv.descripcion,
                                 valor: serv.valor
                             });
@@ -410,7 +405,7 @@
         function guardarServicio(event) {
             event.preventDefault();
             const aIndex = document.getElementById('serv-aliado-index').value;
-            const fecha = document.getElementById('serv-fecha').value; // Fecha limpia YYYY-MM-DD
+            const fecha = document.getElementById('serv-fecha').value;
             const descripcion = document.getElementById('serv-desc').value.toUpperCase();
             const valor = document.getElementById('serv-valor').value;
             const aliadoNombre = aliados[aIndex].nombre;
