@@ -217,7 +217,6 @@
                 .then(res => res.json())
                 .then(data => {
                     aliados = [];
-                    // 1. Cargar estrictamente los aliados puros desde la pestaña ALIADOS (Columna: NOMBRE)
                     if (data.aliados) {
                         data.aliados.forEach(nombreAliado => {
                             if (!aliados.some(a => a.nombre === nombreAliado)) {
@@ -225,7 +224,6 @@
                             }
                         });
                     }
-                    // 2. Asociar los servicios a su respectivo aliado
                     if (data.servicios) {
                         data.servicios.forEach(serv => {
                             let aliadoObj = aliados.find(a => a.nombre === serv.aliado);
@@ -399,7 +397,10 @@
         function guardarServicio(event) {
             event.preventDefault();
             const aIndex = document.getElementById('serv-aliado-index').value;
+            
+            // FECHA TOMADA DIRECTA Y LIMPIA EN FORMATO YYYY-MM-DD
             const fecha = document.getElementById('serv-fecha').value;
+            
             const descripcion = document.getElementById('serv-desc').value.toUpperCase();
             const valor = document.getElementById('serv-valor').value;
             const aliadoNombre = aliados[aIndex].nombre;
